@@ -1,4 +1,4 @@
-// algoritmo de funcionamiento. lee cada 17 segundos 280 y cada 27 el EN160.
+// algoritmo de funcionamiento. lee cada 17 segundos 280 y cada 23 el EN160.
 // si valores fuera de limites activa alarma ( buzzer y led ) hasta que piloto no ack
 // mientras valor fuera de rango texto en fondo BLACK y sigue en estado emergencia. 
 // si vuelve niveles normales se desactiva emenrgencia de ese parametro.
@@ -125,7 +125,7 @@ void  flash() {
 } // fin flash
 
 void leebme280(){
-    unsigned long period=5000; //En Milisegundos
+    unsigned long period=17000; //En Milisegundos
     static unsigned long previousMillis=0;
     if((millis()-previousMillis)>period){//leer cada 5 segundos
       Serial.print(F("Temperature: "));
@@ -161,7 +161,7 @@ void leebme280(){
 }// finlee 280
 //----------------------------------
 void leeens160(){
-  unsigned long period=7000; //En Milisegundos
+  unsigned long period=23000; //En Milisegundos
   static unsigned long previousMillis=0;
   if((millis()-previousMillis)>period){//leer cada 7 segundos
    if (ens160.available()) {
