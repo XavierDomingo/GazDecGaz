@@ -1,7 +1,9 @@
-// algoritmo de funcionamiento. lee cada 5 segundos 280 y cada 10 el EN160
+// algoritmo de funcionamiento. lee cada 17 segundos 280 y cada 27 el EN160.
 // si valores fuera de limites activa alarma ( buzzer y led ) hasta que piloto no ack
 // mientras valor fuera de rango texto en fondo BLACK y sigue en estado emergencia. 
 // si vuelve niveles normales se desactiva emenrgencia de ese parametro.
+// CO2 y Oxigeno activan Pantalla Alarma fija
+
 #include <Adafruit_GFX.h>
 #include <Adafruit_PCD8544.h>
 //#include <Wire.h>
@@ -28,6 +30,8 @@ byte estaon = HIGH;
 bool emergency = 0; // algo no va bien
 bool alert = 0; // bocinazo + flash
 bool ack = 0; // piloto ha apretado el botos de aceptado
+bool ackhPa = 0; // piloto ha apretado el botos de aceptado en hPa alarm
+bool ackCo2 = 0; // piloto ha apretado el botos de aceptado en Co2alarm
 bool emerTemp = 0; // se ha activado emergencia por Temteratura
 bool emerHume = 0; // se ha actuvado emergencia por Humedad
 bool emerhPa= 0; // se ha activado emergencia por altura -> O2
@@ -36,6 +40,12 @@ bool emerTVOC= 0; //Total volatile organic compounds > 750
 bool emereCO2= 0; // > 1000 activa alerta
 int maxhPa = 1044; //max presión registrada
 int minhPa = 700; //presion a 3000 metros HIPOXIA
+int curTemp = 0; //temperatura actual
+int curHumi = 0; //humedad actual
+int curhPa = 0; //hPa actual
+int curCo2 = 0; //Co2 level actual
+int curQAI = 0; // Quality Air indicator
+int curTVOC = 0; //calidad particulas 
 
 Adafruit_PCD8544 display = Adafruit_PCD8544(PIN_SCLK, PIN_SDIN, PIN_DC, PIN_SCE, PIN_RESET);
 ScioSense_ENS160 ens160(ENS160_I2CADDR_0);
@@ -171,29 +181,54 @@ void ackButton(){
 }// ackButton
 
 void muestra(){
-  if ((emerhPa==1)&&(ack==0)){
+  if ((emerhPa==1)&&(ackhPa==0)){ // pantalla emergencia Oxigeno
+    display.clearDisplay();
+    display.setCursor(0,0);
+    display.setTextSize(2);
     display.setTextColor(WHITE, BLACK);
+    display.println("OXIGEN");
+    display.setTextColor(BLACK);
+    display.setTextSize(2);
+    display.print("hPa: ");
+    display.println(curhPa);
+    display.setTextSize(1);
+    display.print("----ALERT----");
+    display.display();
   }
-  else{
-   if ((emereCO2==1)&&(ack==0)){
-    display.setTextColor(WHITE, BLACK);
+  else{ 
+   if ((emereCO2==1)&&(ackCo2==0)){ //pantalla emergencia CO2
+        display.clearDisplay();
+        display.setCursor(0,0);
+        display.setTextSize(2);
+        display.setTextColor(WHITE, BLACK);
+        display.println("-CO2-");
+        display.setTextColor(BLACK);
+        display.setTextSize(2);
+        display.print("CO2: ");
+        display.println(curCo2);
+        display.setTextSize(1);
+        display.print("----ALERT----");
+        display.display();
    }
-   else{
+   else{ //pantalla default
        display.clearDisplay();
        display.setTextSize(1);
+       display.setCursor(0,0);
        if (emerhPa==1){
          display.setTextColor(WHITE, BLACK);}
        else {
          display.setTextColor(BLACK);
        }
-       display.println("O2: 2ppm EXCEL");
+       display.print("OXI: ");
+
+     
        display.println("CO2: 123456ppm");
        if (emerTemp==1){
          display.setTextColor(WHITE, BLACK);}
        else {
          display.setTextColor(BLACK);
        }
-       display.println("T: 123456789C");
+       display.println("Temp: 123456789C");
        display.println("AQi: 1 EXCELL");
        display.println("TVOC: 1 EXCELL");
        display.display();
