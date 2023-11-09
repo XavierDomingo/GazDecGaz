@@ -33,7 +33,6 @@ bool ack = 0; // piloto ha apretado el botos de aceptado
 bool ackhPa = 0; // piloto ha apretado el botos de aceptado en hPa alarm
 bool ackCo2 = 0; // piloto ha apretado el botos de aceptado en Co2alarm
 bool emerTemp = 0; // se ha activado emergencia por Temteratura
-bool emerHume = 0; // se ha actuvado emergencia por Humedad
 bool emerhPa= 0; // se ha activado emergencia por altura -> O2
 bool emerAQI= 0; // alerta > 3 activa Air quality index alert
 bool emerTVOC= 0; //Total volatile organic compounds > 750
@@ -73,9 +72,12 @@ void setup() {
   display.println("USE @ YOUR RISK");
   display.println("Nano ATmega328");
   display.display();
+  digitalWrite(ledPIN, HIGH); // led ON
   tone(buzPIN, 1000, 200);
   delay (500);
   noTone(buzPIN);
+  delay (10000); //10 segundos de screenshot credits 
+  digitalWrite(ledPIN, LOW); // led ON
   
   Serial.println(F("BME280 Sensor event test"));
   if (!bme.begin()) {
@@ -128,7 +130,7 @@ void  flash() {
       }
       else {
         noTone(buzPIN);
-        digitalWrite(ledPIN, HIGH); // led ON
+        digitalWrite(ledPIN, LOW); // led Off
       }
         previousMillis += period;
     }  //millis
@@ -220,16 +222,31 @@ void muestra(){
          display.setTextColor(BLACK);
        }
        display.print("OXI: ");
-
-     
-       display.println("CO2: 123456ppm");
+       display.println(curhPa);
+       //---------
+       if (emerCo2==1){
+         display.setTextColor(WHITE, BLACK);}
+       else {
+         display.setTextColor(BLACK);
+       }
+       display.print("C02: ");
+       display.println(curCo2);
+       //-----------------
        if (emerTemp==1){
          display.setTextColor(WHITE, BLACK);}
        else {
          display.setTextColor(BLACK);
        }
-       display.println("Temp: 123456789C");
+       display.print("Temp: ");
+       display.println(curTemp);
+       display.println(" Cº");
+     //-----------------
+       display.print("Hume: ");
+       display.print(curHume);
+       display.println(" %");
+     //-----------------
        display.println("AQi: 1 EXCELL");
+     //-----------------
        display.println("TVOC: 1 EXCELL");
        display.display();
    } 
