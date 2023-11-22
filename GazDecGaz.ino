@@ -9,8 +9,10 @@
 #include <Wire.h>
 //#include <SPI.h>
 #include <ErriezBMX280.h>
-#include <ScioSense_ENS160.h>
+#include <DFRobot_ENS160.h>
+
 ErriezBMX280 bmx280 = ErriezBMX280(0x76);
+DFRobot_ENS160_I2C ENS160(&Wire, /*I2CAddr*/ 0x53);
 
 const int butPIN = 8;
 const int ledPIN = 9;
@@ -42,7 +44,7 @@ int curQAI = 0; // Quality Air indicator
 int curTVOC = 0; //calidad particulas 
 
 Adafruit_PCD8544 display = Adafruit_PCD8544(PIN_SCLK, PIN_SDIN, PIN_DC, PIN_SCE, PIN_RESET);
-ScioSense_ENS160 ens160(ENS160_I2CADDR_0);
+
 
 void setup() {
   Serial.begin(9600);
@@ -80,16 +82,28 @@ void setup() {
   }
   //init ens160
   Serial.print("ENS160...");
-  ens160.begin();
-  Serial.println(ens160.available() ? "done." : "failed!");
-  if (ens160.available()) {
-    // Print ENS160 versions
-    Serial.print("\tRev: "); Serial.print(ens160.getMajorRev());
-    Serial.print("."); Serial.print(ens160.getMinorRev());
-    Serial.print("."); Serial.println(ens160.getBuild());
-    Serial.print("\tStandard mode ");
-    Serial.println(ens160.setMode(ENS160_OPMODE_STD) ? "done." : "failed!");
-  }
+  while( NO_ERR != ENS160.begin() ){
+    Serial.println("Communication with device failed, please check connection");
+    delay(3000);
+   }
+  ENS160.setPWRMode(ENS160_STANDARD_MODE);
+   /**
+   * Users write ambient temperature and relative humidity into ENS160 for calibration and compensation of the measured gas data.
+   * ambientTemp Compensate the current ambient temperature, float type, unit: C
+   * relativeHumidity Compensate the current ambient humidity, float type, unit: %rH
+   */
+   Serial.print(F("Temperature inicial : "));
+   Serial.print(bmx280.readTemperature());
+   Serial.println(" C");
+   curTemp=bmx280.readTemperature();
+   if (bmx280.getChipID() == CHIP_ID_BME280) {
+      Serial.print(F("Humidity inicial:    "));
+      Serial.print(bmx280.readHumidity());
+      Serial.println(" %");
+      curHumi=bmx280.readHumidity();
+      }
+  ENS160.setTempAndHum(curTemp, curHumi);
+    
 }//setup
 //---------------------------------------------------------
 
@@ -98,7 +112,7 @@ void loop() {
   leeens160();
   ackButton();
   if ((emerhPa==1)||(emerCo2==1)){ //si hay emergencia 
-     if ((ackhPa==0)&&(ackCo2==0){ //si no hay ack's del Piloto
+     if ((ackhPa==0)&&(ackCo2==0)){ //si no hay ack's del Piloto
        flash(); //pita y flash
      }
   }
@@ -109,7 +123,7 @@ void  flash() {
     //{period}: Periodo de Tiempo en el cual se va a ejecutar esta tarea
     unsigned long period=500; //En Milisegundos
     static unsigned long previousMillis=0;
-    if(((millis()-previousMillis)>period){//si priodo y el piloto no ha dicho que basta
+    if(((millis()-previousMillis)>period)){//si priodo y el piloto no ha dicho que basta
       if (alert=0){
         digitalWrite(ledPIN, HIGH); // led ON
         tone(buzPIN, 880, 200);
@@ -127,7 +141,7 @@ void  flash() {
 void leebme280(){
     unsigned long period=17000; //En Milisegundos
     static unsigned long previousMillis=0;
-    if((millis()-previousMillis)>period){//leer cada 5 segundos
+    if((millis()-previousMillis)>period){//leer cada 17 segundos
       Serial.print(F("Temperature: "));
       Serial.print(bmx280.readTemperature());
       Serial.println(" C");
@@ -140,7 +154,7 @@ void leebme280(){
         }
       Serial.print(F("Pressure:    "));
       Serial.print(bmx280.readPressure() / 100.0F);
-      Serial.println(" hPa")
+      Serial.println(" hPa");
       curhPa=bmx280.readPressure() / 100.0F;
       previousMillis += period;
       // test emergencia
@@ -164,33 +178,68 @@ void leeens160(){
   unsigned long period=23000; //En Milisegundos
   static unsigned long previousMillis=0;
   if((millis()-previousMillis)>period){//leer cada 7 segundos
-   if (ens160.available()) {
-    ens160.measure(true);
-    ens160.measureRaw(true);
-    Serial.print("AQI: ");Serial.print(ens160.getAQI());Serial.print("\t");
-    Serial.print("emerTVOC: ");Serial.print(ens160.getTVOC());Serial.print("ppb\t");
-    Serial.print("eCO2: ");Serial.print(ens160.geteCO2());Serial.print("ppm\t");
-    curCo2= ens160.getAQI();
-    curQAI= ens160.getTVOC(); 
-    curTVOC= ens160.geteCO2();
-    }
+     /**
+     * Get the sensor operating status
+     * Return value: 0-Normal operation, 
+     *         1-Warm-Up phase, first 3 minutes after power-on.
+     *         2-Initial Start-Up phase, first full hour of operation after initial power-on. Only once in the sensor’s lifetime.
+     * note: Note that the status will only be stored in the non-volatile memory after an initial 24h of continuous
+     *       operation. If unpowered before conclusion of said period, the ENS160 will resume "Initial Start-up" mode
+     *       after re-powering.
+     */
+  uint8_t Status = ENS160.getENS160Status();
+  Serial.print("Sensor operating status : ");
+  Serial.println(Status);
+
+  /**
+   * Get the air quality index
+   * Return value: 1-Excellent, 2-Good, 3-Moderate, 4-Poor, 5-Unhealthy
+   */
+  curQAI= ENS160.getAQI();
+  Serial.print("Air quality index : ");
+  Serial.println(curQAI);
+
+  /**
+   * Get TVOC concentration
+   * Return value range: 0–65000, unit: ppb
+   */
+  curTVOC= ENS160.getTVOC();
+  Serial.print("Concentration of total volatile organic compounds : ");
+  Serial.print(curQAI);
+  Serial.println(" ppb");
+
+  /**
+   * Get CO2 equivalent concentration calculated according to the detected data of VOCs and hydrogen (eCO2 – Equivalent CO2)
+   * Return value range: 400–65000, unit: ppm
+   * Five levels: Excellent(400 - 600), Good(600 - 800), Moderate(800 - 1000), 
+   *               Poor(1000 - 1500), Unhealthy(> 1500)
+   */
+  curCo2= ENS160.getECO2();
+  Serial.print("Carbon dioxide equivalent concentration : ");
+  Serial.print(curCo2);
+  Serial.println(" ppm");
+   
     // EValuar emergencia 
     //bool emerAQI= 0; // alerta >= 3 activa Air quality index alert
     //bool emerTVOC= 0; //Total volatile organic compounds > 750
     //bool emerCo2= 0; // > 1000 activa alerta  
     if (curCo2 > 1000) {
       emerCo2=1;
+    }
     else{
       emerCo2=0;
-      ackC02=0;
+      ackCo2=0;
       }
     if (curQAI > 2) {
-      emerQAI=1;
+      emerAQI=1;
+    }
     else{
-      emerQAI=0;
+      emerAQI=0;
+      
       }
     if (curTVOC > 750) {
       emerTVOC=1;
+      }
     else{
       emerTVOC=0;
       }      
@@ -211,7 +260,7 @@ void ackButton(){
      else  {
        ackhPa=0;
        if (emerCo2==1){
-        ackC02=1;  
+        ackCo2=1;  
        }
        else {
          ackCo2=0;
@@ -237,7 +286,7 @@ void muestra(){
     display.display();
   }
   else{ 
-   if ((emereCO2==1)&&(ackCo2==0)){ //pantalla emergencia CO2
+   if ((emerCo2==1)&&(ackCo2==0)){ //pantalla emergencia CO2
         display.clearDisplay();
         display.setCursor(0,0);
         display.setTextSize(2);
@@ -281,7 +330,7 @@ void muestra(){
        display.println(" Cº");
      //-----------------
        display.print("Hume: ");
-       display.print(curHume);
+       display.print(curHumi);
        display.println(" %");
      //-----------------
        if (emerAQI==1){
@@ -290,7 +339,7 @@ void muestra(){
          display.setTextColor(BLACK);
        }
        display.print("AirQI: ");
-       display.println(curAQI);
+       display.println(curQAI);
     //-----------------
        if (emerAQI==1){
          display.setTextColor(WHITE, BLACK);}
@@ -305,4 +354,3 @@ void muestra(){
   } 
 
 }//fin muestra
-
