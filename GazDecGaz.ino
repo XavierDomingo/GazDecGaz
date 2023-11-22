@@ -14,14 +14,14 @@
 ErriezBMX280 bmx280 = ErriezBMX280(0x76);
 DFRobot_ENS160_I2C ENS160(&Wire, /*I2CAddr*/ 0x53);
 
-const int butPIN = 8;
-const int ledPIN = 9;
-const int buzPIN = 11;
-const int PIN_RESET = 3;  // LCD1 Reset
-const int PIN_SCE = 4;    // LCD2 Chip Select
-const int PIN_DC = 5;     // LCD3 Dat/Command
+const int butPIN = 2;
+const int ledPIN = 5;
+const int buzPIN = 3 ;// buzer
+const int PIN_RESET = 9;  // LCD1 Reset
+const int PIN_SCE = 8;    // LCD2 Chip Select
+const int PIN_DC = 7;     // LCD3 Dat/Command
 const int PIN_SDIN = 6;   // LCD4 Data in
-const int PIN_SCLK = 7;   // LCD5 Clk
+const int PIN_SCLK = 4;   // LCD5 Clk
                 // LCD6 Vcc
               // LCD7 Vled
               // LCD8 Gnd
@@ -54,7 +54,7 @@ void setup() {
   display.begin();
   // init DISPLAY NOKIA 5110
   display.setContrast(50);
-  display.setRotation(0);
+  display.setRotation(2);
   display.clearDisplay();   // clears the screen and buffer
   // text display tests
   display.setTextSize(1);
@@ -66,7 +66,7 @@ void setup() {
   display.println("Javier Domingo");
   display.setTextColor(BLACK); // 
   display.println("V.0.1 nov 2023");
-  display.println("USE @ YOUR RISK");
+  display.println("USE@YOUR RISK");
   display.println("Nano ATmega328");
   display.display();
   digitalWrite(ledPIN, HIGH); // led ON
@@ -78,12 +78,24 @@ void setup() {
   // init BMP280
   while (!bmx280.begin()) {
         Serial.println(F("Error: Could not detect sensor"));
+        display.clearDisplay();
+        display.setTextColor(BLACK);
+        display.setCursor(0, 0);
+        display.println("init BMP280");
+        display.println("ERROR");
+        display.display();
         delay(1000);
   }
   //init ens160
   Serial.print("ENS160...");
   while( NO_ERR != ENS160.begin() ){
     Serial.println("Communication with device failed, please check connection");
+        display.clearDisplay();
+        display.setTextColor(BLACK);
+        display.setCursor(0, 0);
+        display.println("init ENS160");
+        display.println("ERROR");
+        display.display();
     delay(3000);
    }
   ENS160.setPWRMode(ENS160_STANDARD_MODE);
@@ -310,7 +322,8 @@ void muestra(){
          display.setTextColor(BLACK);
        }
        display.print("OXI: ");
-       display.println(curhPa);
+       display.print(curhPa);
+       display.println(" hPa");
        //---------
        if (emerCo2==1){
          display.setTextColor(WHITE, BLACK);}
@@ -318,7 +331,8 @@ void muestra(){
          display.setTextColor(BLACK);
        }
        display.print("C02: ");
-       display.println(curCo2);
+       display.print(curCo2);
+       display.println(" ppm");
        //-----------------
        if (emerTemp==1){
          display.setTextColor(WHITE, BLACK);}
@@ -327,7 +341,7 @@ void muestra(){
        }
        display.print("Temp: ");
        display.print(curTemp);
-       display.println(" Cº");
+       display.println(" C");
      //-----------------
        display.print("Hume: ");
        display.print(curHumi);
@@ -339,7 +353,8 @@ void muestra(){
          display.setTextColor(BLACK);
        }
        display.print("AirQI: ");
-       display.println(curQAI);
+       display.print(curQAI);
+       display.println(" lev");
     //-----------------
        if (emerAQI==1){
          display.setTextColor(WHITE, BLACK);}
@@ -347,7 +362,8 @@ void muestra(){
          display.setTextColor(BLACK);
        }
        display.print("TVOC: ");
-       display.println(emerTVOC);
+       display.print(curTVOC);
+       display.println(" ppm");
      
        display.display();
    } 
