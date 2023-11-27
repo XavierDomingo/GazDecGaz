@@ -121,9 +121,10 @@ void loop() {
 
 void  flash() {
     //{period}: Periodo de Tiempo en el cual se va a ejecutar esta tarea
-    unsigned long period=500; //En Milisegundos
-    static unsigned long previousMillis=0;
-    if(((millis()-previousMillis)>period)){//si priodo y el piloto no ha dicho que basta
+    static long ultimo_cambio = 0; 
+    alert = false;
+    if(((millis()- ultimo_cambio) > 1000)){//si priodo y el piloto no ha dicho que basta
+      ultimo_cambio= millis();
       if (alert=false){
         digitalWrite(ledPIN, HIGH); // led ON
         tone(buzPIN, 880, 200);
@@ -134,14 +135,13 @@ void  flash() {
         digitalWrite(ledPIN, LOW); // led Off
         alert=false;
       }
-        previousMillis += period;
     }  //millis
 } // fin flash
 
 void leebme280(){
-    unsigned long period=17000; //En Milisegundos
-    static unsigned long previousMillis=0;
-    if((millis()-previousMillis)>period){//leer cada 17 segundos
+    static long ultimo_cambio = 0; 
+    if((millis()- ultimo_cambio)>17000){//leer cada 17 segundos
+      ultimo_cambio= millis();
       Serial.print(F("Temperature: "));
       Serial.print(bmx280.readTemperature());
       Serial.println(" C");
@@ -156,7 +156,6 @@ void leebme280(){
       Serial.print(bmx280.readPressure() / 100.0F);
       Serial.println(" hPa");
       curhPa=bmx280.readPressure() / 100.0F;
-      previousMillis += period;
       // test emergencia
       if (curTemp < -5 && curTemp > 40){
         emerTemp = true; // se ha activado emergencia por Temteratura inf -5 o sup 40 Cº
@@ -175,9 +174,9 @@ void leebme280(){
 }// finlee 280
 //----------------------------------
 void leeens160(){
-  unsigned long period=23000; //En Milisegundos
-  static unsigned long previousMillis=0;
-  if((millis()-previousMillis)>period){//leer cada 7 segundos
+   static long ultimo_cambio = 0; 
+    if((millis()- ultimo_cambio)>23000){//leer cada 23 segundos
+    ultimo_cambio= millis();
      /**
      * Get the sensor operating status
      * Return value: 0-Normal operation, 
@@ -242,8 +241,7 @@ void leeens160(){
       }
     else{
       emerTVOC=false;
-      }      
-    previousMillis += period;
+      }  
   }//millis
 }// leeens160
 //---------------------------------------------
