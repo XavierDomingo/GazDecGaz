@@ -253,18 +253,12 @@ void ackButton(){
    delay(50);
    if (estaon == LOW ) {
      if (emerhPa==true)  {
-     ackhPa=true;
+      ackhPa=true;
      }
-     else  {
-       ackhPa=false;
-       if (emerCo2==true){
-        ackCo2=true;  
-       }
-       else {
-         ackCo2=false;
-       }
+     if (emerCo2==true){
+      ackCo2=true;  
      }
-   }
+    }
   }
 }// ackButton
 
