@@ -26,14 +26,14 @@ const int PIN_SCLK = 4;   // LCD5 Clk
               // LCD7 Vled
               // LCD8 Gnd
 byte estaon = HIGH;
-bool alert = 0; // bocinazo + flash comtrol de tiempo millis
-bool ackhPa = 0; // piloto ha apretado el boton de aceptado en hPa alarm
-bool ackCo2 = 0; // piloto ha apretado el boton de aceptado en Co2alarm
-bool emerTemp = 0; // se ha activado emergencia por Temteratura
-bool emerhPa= 0; // se ha activado emergencia por altura -> O2
-bool emerAQI= 0; // alerta > 3 activa Air quality index alert
-bool emerTVOC= 0; //Total volatile organic compounds > 750
-bool emerCo2= 0; // > 1000 activa alerta
+bool alert = false; // bocinazo + flash comtrol de tiempo millis
+bool ackhPa = false; // piloto ha apretado el boton de aceptado en hPa alarm
+bool ackCo2 = false; // piloto ha apretado el boton de aceptado en Co2alarm
+bool emerTemp = false; // se ha activado emergencia por Temteratura
+bool emerhPa= false; // se ha activado emergencia por altura -> O2
+bool emerAQI= false; // alerta > 3 activa Air quality index alert
+bool emerTVOC= false; //Total volatile organic compounds > 750
+bool emerCo2= false; // > 1000 activa alerta
 int maxhPa = 1044; //max presión registrada
 int minhPa = 700; //presion a 3000 metros HIPOXIA
 int curTemp = 0; //temperatura actual
@@ -123,8 +123,8 @@ void loop() {
   leebme280();
   leeens160();
   ackButton();
-  if ((emerhPa==1)||(emerCo2==1)){ //si hay emergencia 
-     if ((ackhPa==0)&&(ackCo2==0)){ //si no hay ack's del Piloto
+  if ((emerhPa==true)||(emerCo2==true)){ //si hay emergencia 
+     if ((ackhPa==false)&&(ackCo2==false)){ //si no hay ack's del Piloto
        flash(); //pita y flash
      }
   }
@@ -133,27 +133,27 @@ void loop() {
 
 void  flash() {
     //{period}: Periodo de Tiempo en el cual se va a ejecutar esta tarea
-    unsigned long period=500; //En Milisegundos
-    static unsigned long previousMillis=0;
-    if(((millis()-previousMillis)>period)){//si priodo y el piloto no ha dicho que basta
-      if (alert=0){
+    static long ultimo_cambio = 0; 
+    alert = false;
+    if(((millis()- ultimo_cambio) > 1000)){//si priodo y el piloto no ha dicho que basta
+      ultimo_cambio= millis();
+      if (alert=false){
         digitalWrite(ledPIN, HIGH); // led ON
         tone(buzPIN, 880, 200);
-        alert=1;
+        alert=true;
       }
       else {
         noTone(buzPIN);
         digitalWrite(ledPIN, LOW); // led Off
-        alert=0;
+        alert=false;
       }
-        previousMillis += period;
     }  //millis
 } // fin flash
 
 void leebme280(){
-    unsigned long period=17000; //En Milisegundos
-    static unsigned long previousMillis=0;
-    if((millis()-previousMillis)>period){//leer cada 17 segundos
+    static long ultimo_cambio = 0; 
+    if((millis()- ultimo_cambio)>17000){//leer cada 17 segundos
+      ultimo_cambio= millis();
       Serial.print(F("Temperature: "));
       Serial.print(bmx280.readTemperature());
       Serial.println(" C");
@@ -168,28 +168,27 @@ void leebme280(){
       Serial.print(bmx280.readPressure() / 100.0F);
       Serial.println(" hPa");
       curhPa=bmx280.readPressure() / 100.0F;
-      previousMillis += period;
       // test emergencia
       if (curTemp < -5 && curTemp > 40){
-        emerTemp = 1; // se ha activado emergencia por Temteratura inf -5 o sup 40 Cº
+        emerTemp = true; // se ha activado emergencia por Temteratura inf -5 o sup 40 Cº
       }
       else {
-        emerTemp = 0;
+        emerTemp = false;
       }
       if (curhPa < minhPa && curhPa > maxhPa){
-        emerhPa = 1; // se ha activado emergencia por presión
+        emerhPa = true; // se ha activado emergencia por presión
       }
       else {
-        emerhPa = 0;
-        ackhPa =0;
+        emerhPa = false;
+        ackhPa =false;
       }
     } //millis
 }// finlee 280
 //----------------------------------
 void leeens160(){
-  unsigned long period=23000; //En Milisegundos
-  static unsigned long previousMillis=0;
-  if((millis()-previousMillis)>period){//leer cada 7 segundos
+   static long ultimo_cambio = 0; 
+    if((millis()- ultimo_cambio)>23000){//leer cada 23 segundos
+    ultimo_cambio= millis();
      /**
      * Get the sensor operating status
      * Return value: 0-Normal operation, 
@@ -236,26 +235,25 @@ void leeens160(){
     //bool emerTVOC= 0; //Total volatile organic compounds > 750
     //bool emerCo2= 0; // > 1000 activa alerta  
     if (curCo2 > 1000) {
-      emerCo2=1;
+      emerCo2=true;
     }
     else{
-      emerCo2=0;
-      ackCo2=0;
+      emerCo2=false;
+      ackCo2=false;
       }
     if (curQAI > 2) {
-      emerAQI=1;
+      emerAQI=true;
     }
     else{
       emerAQI=0;
       
       }
     if (curTVOC > 750) {
-      emerTVOC=1;
+      emerTVOC=true;
       }
     else{
-      emerTVOC=0;
-      }      
-    previousMillis += period;
+      emerTVOC=false;
+      }  
   }//millis
 }// leeens160
 //---------------------------------------------
@@ -266,24 +264,18 @@ void ackButton(){
     // ESPERAMOS ANTES DE COMPROBAR NUEVAMENTE
    delay(50);
    if (estaon == LOW ) {
-     if (emerhPa==1)  {
-     ackhPa=1;
+     if (emerhPa==true)  {
+      ackhPa=true;
      }
-     else  {
-       ackhPa=0;
-       if (emerCo2==1){
-        ackCo2=1;  
-       }
-       else {
-         ackCo2=0;
-       }
+     if (emerCo2==true){
+      ackCo2=true;  
      }
-   }
+    }
   }
 }// ackButton
 
 void muestra(){
-  if ((emerhPa==1)&&(ackhPa==0)){ // pantalla emergencia Oxigeno
+  if ((emerhPa==true)&&(ackhPa==false)){ // pantalla emergencia Oxigeno
     display.clearDisplay();
     display.setCursor(0,0);
     display.setTextSize(2);
@@ -325,7 +317,7 @@ void muestra(){
        display.print(curhPa);
        display.println(" hPa");
        //---------
-       if (emerCo2==1){
+       if (emerCo2==true){
          display.setTextColor(WHITE, BLACK);}
        else {
          display.setTextColor(BLACK);
@@ -334,7 +326,7 @@ void muestra(){
        display.print(curCo2);
        display.println(" ppm");
        //-----------------
-       if (emerTemp==1){
+       if (emerTemp==false){
          display.setTextColor(WHITE, BLACK);}
        else {
          display.setTextColor(BLACK);
@@ -347,7 +339,7 @@ void muestra(){
        display.print(curHumi);
        display.println(" %");
      //-----------------
-       if (emerAQI==1){
+       if (emerAQI==true){
          display.setTextColor(WHITE, BLACK);}
        else {
          display.setTextColor(BLACK);
@@ -356,7 +348,7 @@ void muestra(){
        display.print(curQAI);
        display.println(" lev");
     //-----------------
-       if (emerAQI==1){
+       if (emerAQI==true){
          display.setTextColor(WHITE, BLACK);}
        else {
          display.setTextColor(BLACK);
