@@ -26,9 +26,7 @@ const int PIN_SCLK = 4;   // LCD5 Clk
               // LCD7 Vled
               // LCD8 Gnd
 byte estaon = HIGH;
-bool alert = false; // bocinazo + flash comtrol de tiempo millis
-bool ackhPa = false; // piloto ha apretado el boton de aceptado en hPa alarm
-bool ackCo2 = false; // piloto ha apretado el boton de aceptado en Co2alarm
+bool alerta = false; // bocinazo + flash comtrol de tiempo millis
 bool emerTemp = false; // se ha activado emergencia por Temteratura
 bool emerhPa= false; // se ha activado emergencia por altura -> O2
 bool emerAQI= false; // alerta > 3 activa Air quality index alert
@@ -53,7 +51,7 @@ void setup() {
   pinMode(butPIN, INPUT); // pin boton es entrada
   display.begin();
   // init DISPLAY NOKIA 5110
-  display.setContrast(50);
+  display.setContrast(48);
   display.setRotation(2);
   display.clearDisplay();   // clears the screen and buffer
   // text display tests
@@ -122,33 +120,29 @@ void setup() {
 void loop() {
   leebme280();
   leeens160();
-  ackButton();
-  if ((emerhPa==true)||(emerCo2==true)){ //si hay emergencia 
-     if ((ackhPa==false)&&(ackCo2==false)){ //si no hay ack's del Piloto
-       flash(); //pita y flash
-     }
-  }
-  muestra();
-}
 
-void  flash() {
-    //{period}: Periodo de Tiempo en el cual se va a ejecutar esta tarea
-    static long ultimo_cambio = 0; 
-    alert = false;
-    if(((millis()- ultimo_cambio) > 1000)){//si priodo y el piloto no ha dicho que basta
-      ultimo_cambio= millis();
-      if (alert=false){
-        digitalWrite(ledPIN, HIGH); // led ON
-        tone(buzPIN, 880, 200);
-        alert=true;
-      }
-      else {
-        noTone(buzPIN);
-        digitalWrite(ledPIN, LOW); // led Off
-        alert=false;
-      }
-    }  //millis
-} // fin flash
+  if ((emerhPa==true)||(emerCo2==true)){ //si hay emergencia 
+       alerta = true;
+       if (alerta==true) {    
+         digitalWrite(ledPIN, LOW);
+         noTone(buzPIN);
+         delay(500);
+         digitalWrite(ledPIN, HIGH);
+         tone(buzPIN, 880, 200);
+         delay(500);
+       }  
+       if (digitalRead(butPIN) == HIGH) {
+          alerta=false;
+       }
+       else {
+          digitalWrite(ledPIN, LOW);
+          noTone(buzPIN);
+     }
+   }
+  muestra();
+
+    
+}// end loop
 
 void leebme280(){
     static long ultimo_cambio = 0; 
@@ -169,7 +163,7 @@ void leebme280(){
       Serial.println(" hPa");
       curhPa=bmx280.readPressure() / 100.0F;
       // test emergencia
-      if (curTemp < -5 && curTemp > 40){
+      if (curTemp < 4 && curTemp > 35){
         emerTemp = true; // se ha activado emergencia por Temteratura inf -5 o sup 40 Cº
       }
       else {
@@ -180,7 +174,6 @@ void leebme280(){
       }
       else {
         emerhPa = false;
-        ackhPa =false;
       }
     } //millis
 }// finlee 280
@@ -234,12 +227,11 @@ void leeens160(){
     //bool emerAQI= 0; // alerta >= 3 activa Air quality index alert
     //bool emerTVOC= 0; //Total volatile organic compounds > 750
     //bool emerCo2= 0; // > 1000 activa alerta  
-    if (curCo2 > 1000) {
+    if (curCo2 > 900) {
       emerCo2=true;
     }
     else{
       emerCo2=false;
-      ackCo2=false;
       }
     if (curQAI > 2) {
       emerAQI=true;
@@ -258,24 +250,8 @@ void leeens160(){
 }// leeens160
 //---------------------------------------------
 
-void ackButton(){  
-  estaon = digitalRead(butPIN);
-  if (estaon == LOW) {
-    // ESPERAMOS ANTES DE COMPROBAR NUEVAMENTE
-   delay(50);
-   if (estaon == LOW ) {
-     if (emerhPa==true)  {
-      ackhPa=true;
-     }
-     if (emerCo2==true){
-      ackCo2=true;  
-     }
-    }
-  }
-}// ackButton
-
 void muestra(){
-  if ((emerhPa==true)&&(ackhPa==false)){ // pantalla emergencia Oxigeno
+  if ((emerhPa==true)&&(alerta==true)){ // pantalla emergencia Oxigeno
     display.clearDisplay();
     display.setCursor(0,0);
     display.setTextSize(2);
@@ -290,7 +266,7 @@ void muestra(){
     display.display();
   }
   else{ 
-   if ((emerCo2==1)&&(ackCo2==0)){ //pantalla emergencia CO2
+   if ((emerCo2==1)&&(alerta==true)){ //pantalla emergencia CO2
         display.clearDisplay();
         display.setCursor(0,0);
         display.setTextSize(2);
@@ -305,8 +281,10 @@ void muestra(){
         display.display();
    }
    else{ //pantalla default
+       
        display.clearDisplay();
        display.setTextSize(1);
+       //display.setTextColor(BLACK);
        display.setCursor(0,0);
        if (emerhPa==1){
          display.setTextColor(WHITE, BLACK);}
@@ -326,7 +304,7 @@ void muestra(){
        display.print(curCo2);
        display.println(" ppm");
        //-----------------
-       if (emerTemp==false){
+       if (emerTemp==true){
          display.setTextColor(WHITE, BLACK);}
        else {
          display.setTextColor(BLACK);
